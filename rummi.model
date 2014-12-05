@@ -1,0 +1,35 @@
+param NB_MUL; #multiplicite des cartes (1 = 1 jeu de 52 cartes, 2 = 2 jeux etc)
+param NB_NUM; #nombre de numeros (13 = un jeu normal de 52 cartes)
+param NB_COUL; #nombre de couleurs (4 = un jeu normal de 52 cartes)
+param cout{i in 1..NB_NUM}; #cout[i] est le cout du numero i, normalement egal a i, mais par exemple le 1 peut avoir cout 13
+param coutjo; #cout du joker
+
+param carte_table{i in 1..NB_NUM, j in 1..NB_COUL}; #carte_table[i, k] = nombre de cartes de numero i, couleur k sur table
+param carte_main{i in 1..NB_NUM, j in 1..NB_COUL}; #carte_main[i, k] = nombre de cartes de numero i, couleur k en main
+param carte_table_joker; #nombre de jokers sur table
+param carte_main_joker; #nombre de jokers en main
+
+var x{1..NB_NUM, 1..NB_COUL, 1..NB_MUL} binary; #x[i, j, k] =  la k-eme carte de numero i, couleur j est en main apres le jeu
+var j1{1..NB_MUL} binary; #le k-eme joker est en main apres le jeu
+var y{1..NB_NUM, 1..NB_COUL, 1..NB_MUL} binary; #y[i, j, k] = la k-eme carte de numero i, couleur j est sur table apres le jeu
+var j2{1..NB_NUM, 1..NB_COUL, 1..NB_MUL} binary; #le k-eme joker est sur table apres le jeu au lieu de la carte de numero i et couleur j
+var gr{1..NB_NUM, 1..NB_COUL, 1..NB_MUL} binary; #gr[i, j, k] = la k-eme carte de numero i, couleur j est dans un groupe sur table, ou le k-eme joker est la
+var sui{1..5, 1..NB_NUM, 1..NB_COUL, 1..NB_MUL} binary; #sui[n, i, j, k] = la k-eme carte de numero i, couleur j est dans la n-eme position d'une suite, ou le k-eme joker est la
+
+minimize z: (sum{i in 1..NB_NUM, j in 1..NB_COUL, k in 1..NB_MUL}x[i, j, k]*cout[i]) + (sum{k in 1..NB_MUL} j1[k]*coutjo);
+
+subject to
+C1 {i in 1..NB_NUM, j in 1..NB_COUL}: sum{k in 1..NB_MUL}(x[i, j, k] + y[i, j, k]) = carte_main[i, j] + carte_table[i, j]; #le nombre de cartes en jeu ne change pas
+C2: sum{k in 1..NB_MUL} (j1[k] + sum{i in 1..NB_NUM, j in 1..NB_COUL} j2[i, j, k]) = carte_table_joker + carte_main_joker; #le nombre de jokers non plus
+C3 {i in 1..NB_NUM, j in 1..NB_COUL}: sum{k in 1..NB_MUL} y[i, j, k] >= carte_table[i, j]; #aucune carte ne revient en main
+C4: sum{i in 1..NB_NUM, j in 1..NB_COUL, k in 1..NB_MUL} j2[i, j, k] >= carte_table_joker; #meme pas le joker
+C5 {i in 1..NB_NUM, j in 1..NB_COUL, k in 1..NB_MUL}: x[i, j, k] + y[i, j, k] <= 1; #chaque carte est soit en main soit sur table soit pas en jeu
+C6 {k in 1..NB_MUL}: j1[k] + sum{i in 1..NB_NUM, j in 1..NB_COUL} j2[i, j, k] <= 1;
+C7 {i in 1..NB_NUM, j in 1..NB_COUL, k in 1..NB_MUL}: gr[i, j, k] + sum{n in 1..5} sui[n, i, j, k] = y[i, j, k] + j2[i, j, k]; #chaque carte sur table est soit dans un groupe, soit dans une suite
+C8 {i in 1..(NB_NUM - 2), j in 1..NB_COUL, k in 1..NB_MUL}: sui[1, i, j, k] = sui[2, i + 1, j, k]; #au moins 3 cartes par suite
+C9 {i in 2..(NB_NUM - 1), j in 1..NB_COUL, k in 1..NB_MUL}: sui[2, i, j, k] = sui[3, i + 1, j, k]; #au moins 3 cartes par suite
+C10 {i in 3..NB_NUM, j in 1..NB_COUL, k in 1..NB_MUL}: sui[3, i - 1, j, k] >= sui[4, i, j, k]; #pour qu'une suite ait 4 cartes il faut en avoir 3
+C11 {i in 3..NB_NUM, j in 1..NB_COUL, k in 1..NB_MUL}: sui[4, i - 1, j, k] >= sui[5, i, j, k]; #meme chose pour 5 et 4
+C12 {j in 1..NB_COUL, k in 1..NB_MUL}: sum{n in 2..5} sui[n, 1, j, k] + sum{n in 3..5} sui[n, 2, j, k] + sui[1, NB_NUM - 1, j, k] + sui[1, NB_NUM, j, k] + sui[2, NB_NUM, j, k] = 0;
+C13 {i in 1..NB_NUM, j in 1..NB_COUL, k in 1..NB_MUL}: sum{n in 1..5} sui[n, i, j, k] <= 1; #chaque carte ne peut occuper qu'une position dans une suite
+C14 {i in 1..NB_NUM, l in 1..NB_COUL, k in 1..NB_MUL}: sum{j in 1..NB_COUL} gr[i, j, k] >= 3*gr[i, l, k]; #au moins 3 cartes par groupe

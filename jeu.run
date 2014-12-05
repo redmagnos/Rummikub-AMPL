@@ -1,0 +1,32 @@
+reset;
+option solver cplexamp;
+option randseed 0;
+model jeu.model;
+data jeu.data;
+
+param num; #parametres pour piocher
+param coul;
+param found;
+param enter; #parametre pour imprimer
+param tour; #parametre pour compter le nombre de tours
+
+for{i in 1..NB_NUM, j in 1..NB_COUL}{
+  let carte_main[i, j] := 0;
+  let carte_table[i, j] := 0;
+}
+let carte_table_joker := 0;
+let carte_main_joker := 0;
+for{i in 1..(hand_size-1)} commands piocher.command; #pioche la main initiale
+printf "\n";
+let tour := 0;
+repeat{
+  let tour := tour + 1;
+  printf "----Tour %d----\n", tour;
+  commands piocher.command;
+  solve;
+  commands print.command;
+  commands update.command;
+}
+until z = 0;
+
+printf "Le joueur a gagne le jeu apres %d tours.\n", tour;
